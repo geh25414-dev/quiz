@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>桌遊答題網頁</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Microsoft JhengHei", sans-serif;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: url('background.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+
+        #main-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+        }
+
+        .hidden { display: none; }
+
+        h2 { color: #333; margin-top: 0; }
+
+        #timer {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff4444;
+            margin-bottom: 20px;
+        }
+
+        #input-section { margin-bottom: 20px; }
+        input {
+            padding: 10px;
+            width: 60px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+
+        button:hover { background-color: #45a049; }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 15px;
+            text-align: left;
+            background-color: #f8f9fa;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .option-btn:hover { background-color: #e9ecef; }
+
+        #question-text {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            min-height: 60px;
+        }
+
+        #mode-tip {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="main-container">
+    <!-- 輸入介面 -->
+    <div id="input-section">
+        <h2>桌遊答題庫</h2>
+        <p>請輸入題號 (1-50)</p>
+        <input type="number" id="target-index" min="1" max="50">
+        <button onclick="startQuiz()">開始挑戰</button>
+    </div>
+
+    <!-- 題目介面 -->
+    <div id="quiz-section" class="hidden">
+        <div id="timer">01:00</div>
+        <div id="mode-tip"></div>
+        <div id="question-text"></div>
+        <div id="options-container">
+            <button class="option-btn" onclick="checkAnswer('A')" id="btnA"></button>
+            <button class="option-btn" onclick="checkAnswer('B')" id="btnB"></button>
+            <button class="option-btn" onclick="checkAnswer('C')" id="btnC"></button>
+            <button class="option-btn" onclick="checkAnswer('D')" id="btnD"></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const questions = [
+        ["誰發明了電燈？", "牛頓", "愛迪生", "愛因斯坦", "特斯拉", "B"],
+        ["台灣最高的山是什麼山？", "雪山", "阿里山", "玉山", "大霸尖山", "C"],
+        ["水在常溫下的化學式是什麼？", "H2O", "CO2", "O2", "N2", "A"],
+        ["哪顆行星被稱為紅色星球？", "金星", "木星", "火星", "土星", "C"],
+        ["一年有多少天（非閏年）？", "364", "365", "366", "360", "B"],
+        ["人體最大的器官是什麼？", "肝臟", "大腦", "皮膚", "肺", "C"],
+        ["世界第一高峰珠穆朗瑪峰位於哪座山脈？", "落磯山脈", "阿爾卑斯山脈", "喜馬拉雅山脈", "安地斯山脈", "C"],
+        ["光合作用主要是植物吸收什麼氣體？", "氧氣", "氮氣", "二氧化碳", "氫氣", "C"],
+        ["奧運五環標誌中沒有哪種顏色？", "藍色", "黃色", "紫色", "黑色", "C"],
+        ["日本的首都在哪裡？", "大阪", "京都", "東京", "北海道", "C"],
+        ["哪種動物被稱為『沙漠之舟』？", "馬", "駱駝", "大象", "驢子", "B"],
+        ["一打是多少個？", "10", "12", "14", "16", "B"],
+        ["下列哪位是著名的音樂家？", "貝多芬", "畢卡索", "莎士比亞", "達文西", "A"],
+        ["地球上最長的河流是？", "長江", "黃河", "尼羅河", "亞馬遜河", "C"],
+        ["大氣中含量最多的氣體是？", "氧氣", "氮氣", "氫氣", "氦氣", "B"],
+        ["請問三角形的內角和是多少度？", "90", "180", "270", "360", "B"],
+        ["彩虹的顏色中，最外圈是什麼顏色？", "紅色", "紫色", "黃色", "藍色", "A"],
+        ["蜘蛛有多少條腿？", "6條", "8條", "10條", "12條", "B"],
+        ["哪種金屬在常溫下是液體？", "金", "銀", "汞", "鐵", "C"],
+        ["『三國演義』中的武聖是誰？", "劉備", "張飛", "關羽", "趙雲", "C"],
+        ["蜜蜂採蜜後會製成什麼？", "果糖", "蜂蜜", "楓糖", "蔗糖", "B"],
+        ["哪一個國家的國旗上有楓葉？", "美國", "英國", "加拿大", "澳洲", "C"],
+        ["下列哪一個不是原色（三原色）？", "紅", "綠", "黃", "藍", "B"],
+        ["蝙蝠屬於哪一類動物？", "鳥類", "哺乳類", "爬蟲類", "兩棲類", "B"],
+        ["世界上最小的鳥是？", "麻雀", "蜂鳥", "燕子", "白文鳥", "B"],
+        ["電腦中負責運算的核心零件是？", "RAM", "HDD", "CPU", "GPU", "C"],
+        ["請問『白雪公主』吃了什麼中毒？", "葡萄", "香蕉", "蘋果", "西瓜", "C"],
+        ["太陽系中體積最大的行星是？", "地球", "木星", "土星", "海王星", "B"],
+        ["『蒙娜麗莎』是誰的作品？", "米開朗基羅", "拉斐爾", "達文西", "梵谷", "C"],
+        ["哪個節日要吃粽子？", "中秋節", "春節", "端午節", "元宵節", "C"],
+        ["下列哪種動物是變溫動物？", "狗狗", "貓咪", "老鼠", "蛇", "D"],
+        ["足球比賽一隊有多少人上場？", "9人", "10人", "11人", "12人", "C"],
+        ["金剛石（鑽石）的主要成分是？", "鈣", "鐵", "碳", "矽", "C"],
+        ["請問美國的現任首都在哪？", "紐約", "洛杉磯", "華盛頓", "芝加哥", "C"],
+        ["人體共有多少塊骨頭？", "106", "206", "306", "406", "B"],
+        ["哪一個行星有明顯的環環繞？", "火星", "天王星", "土星", "冥王星", "C"],
+        ["『哈利波特』的作者是？", "金庸", "JK羅琳", "托爾金", "馬克吐溫", "B"],
+        ["聲音在什麼介質中傳播最快？", "真空", "空氣", "水", "鋼鐵", "D"],
+        ["蜜蜂傳遞訊息主要是透過？", "叫聲", "觸角", "舞蹈", "氣味", "C"],
+        ["世界上面積最大的國家是？", "中國", "美國", "俄羅斯", "加拿大", "C"],
+        ["請問一小時有多少秒？", "60秒", "600秒", "3600秒", "36000秒", "C"],
+        ["哪一個器官負責過濾血液產生尿液？", "心臟", "肝臟", "腎臟", "脾臟", "C"],
+        ["『西遊記』中誰會七十二變？", "豬八戒", "沙悟淨", "孫悟空", "唐三藏", "C"],
+        ["奧運會每隔幾年舉辦一次？", "2年", "3年", "4年", "5年", "C"],
+        ["企鵝生活在地球的哪一端？", "北極", "南極", "赤道", "東極", "B"],
+        ["紙是誰發明的？", "張衡", "祖沖之", "蔡倫", "畢昇", "C"],
+        ["鋼琴有多少個鍵？", "76", "88", "92", "104", "B"],
+        ["下列哪種植物是沙漠中最常見的？", "玫瑰", "仙人掌", "向日葵", "康乃馨", "B"],
+        ["請問『文房四寶』不包括哪一項？", "筆", "墨", "紙", "書", "D"],
+        ["地球自轉一圈大約需要多久？", "一小時", "一天", "一個月", "一年", "B"]
+    ];
+
+    let currentIdx = -1;
+    let timer = null;
+    let timeLeft = 60;
+    let errorCount = 0;
+    let totalQuestionsAnswered = 0;
+
+    function startQuiz() {
+        const input = document.getElementById('target-index');
+        const n = parseInt(input.value);
+        
+        if (n >= 1 && n <= 50) {
+            currentIdx = n - 1;
+            errorCount = 0;
+            timeLeft = 60;
+            totalQuestionsAnswered++;
+            
+            showQuiz();
+            startTimer();
+        } else {
+            alert("請輸入 1 到 50 之間的數字");
+        }
+    }
+
+    function showQuiz() {
+        document.getElementById('input-section').classList.add('hidden');
+        document.getElementById('quiz-section').classList.remove('hidden');
+        
+        const q = questions[currentIdx];
+        const modeTip = totalQuestionsAnswered === 1 ? "首題模式：只有開路者可回答" : "普通模式";
+        document.getElementById('mode-tip').innerText = modeTip;
+        document.getElementById('question-text').innerText = `Q${currentIdx + 1}: ${q[0]}`;
+        
+        document.getElementById('btnA').innerText = "A) " + q[1];
+        document.getElementById('btnB').innerText = "B) " + q[2];
+        document.getElementById('btnC').innerText = "C) " + q[3];
+        document.getElementById('btnD').innerText = "D) " + q[4];
+        
+        // 恢復按鈕可點擊
+        const btns = document.querySelectorAll('.option-btn');
+        btns.forEach(b => b.disabled = false);
+    }
+
+    function startTimer() {
+        if (timer) clearInterval(timer);
+        updateTimerDisplay();
+        timer = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                alert("時間到！挑戰失敗(請重抽題目)。");
+                resetToMain();
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        document.getElementById('timer').innerText = 
+            `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function checkAnswer(choice) {
+        const correct = questions[currentIdx][5];
+        const allowedErrors = totalQuestionsAnswered === 1 ? 1 : 2;
+
+        if (choice === correct) {
+            clearInterval(timer);
+            alert("答對了！答對方執行下一步。");
+            resetToMain();
+        } else {
+            errorCount++;
+            if (errorCount >= allowedErrors) {
+                clearInterval(timer);
+                alert("挑戰失敗！(請重抽題目)");
+                resetToMain();
+            } else {
+                alert(`答錯了！請另一方答題。`);
+            }
+        }
+    }
+
+    function resetToMain() {
+        clearInterval(timer);
+        document.getElementById('quiz-section').classList.add('hidden');
+        document.getElementById('input-section').classList.remove('hidden');
+        document.getElementById('target-index').value = "";
+    }
+</script>
+
+</body>
+</html>
