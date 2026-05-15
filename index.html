@@ -273,31 +273,51 @@
         }, 1000);
     }
 
-    function handleQuiz(data) {
+function handleQuiz(data) {
         const container = document.getElementById('quiz-container');
         if (data.turn === 'QUIZ' && data.quiz) {
             container.classList.remove('hidden');
             const q = rawQuestions[data.quiz.qIdx];
             document.getElementById('question-text').innerText = q[0];
-            const btns = [document.getElementById('optA'), document.getElementById('optB'), document.getElementById('optC'), document.getElementById('optD')];
             
+            const btns = [
+                document.getElementById('optA'), 
+                document.getElementById('optB'), 
+                document.getElementById('optC'), 
+                document.getElementById('optD')
+            ];
+
+            // 檢查是否有「搶答者」
             if (!data.buzzer) {
+                // --- 尚未無人搶答 ---
                 document.getElementById('buzzer-zone').style.display = 'block';
                 btns.forEach((b, i) => {
                     b.innerText = String.fromCharCode(65 + i) + ": " + q[i+1];
-                    b.disabled = true;
+                    b.disabled = true; // 沒搶答前不能按
                 });
             } else {
+                // --- 有人搶答了 ---
                 document.getElementById('buzzer-zone').style.display = 'none';
+                
+                // 檢查是否有人已經答錯過（這題是否進入了「第二輪」）
+                const hasSomeoneFailed = data.failedPlayers && data.failedPlayers.length > 0;
+                
                 btns.forEach((b, i) => {
-                    b.innerText = String.fromCharCode(65 + i);
-                    const hasFailed = data.failedPlayers && data.failedPlayers.includes(myRole);
-                    b.disabled = (data.buzzer.player !== myRole || hasFailed);
+                    if (hasSomeoneFailed) {
+                        // 如果有人錯了，顯示選項文字（撿尾刀模式）
+                        b.innerText = String.fromCharCode(65 + i) + ": " + q[i+1];
+                    } else {
+                        // 如果是第一個搶到的人，維持隱藏文字（高手挑戰模式）
+                        b.innerText = String.fromCharCode(65 + i);
+                    }
+
+                    // 判斷作答權限
+                    const amIFailed = data.failedPlayers && data.failedPlayers.includes(myRole);
+                    b.disabled = (data.buzzer.player !== myRole || amIFailed);
                 });
             }
         } else {
             container.classList.add('hidden');
-            if (myRole === 'A') clearInterval(timerInterval);
         }
     }
 
