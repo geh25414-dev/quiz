@@ -3,117 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>桌遊答題網頁</title>
+    <title>知識封鎖戰：房間對戰版</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: "Microsoft JhengHei", sans-serif;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: url('background.jpg') no-repeat center center fixed;
-            background-size: cover;
-        }
-
-        #main-container {
-            background-color: rgba(255, 255, 255, 0.95);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-            width: 90%;
-            max-width: 500px;
-            text-align: center;
-        }
-
-        .hidden { display: none; }
-
-        h2 { color: #333; margin-top: 0; }
-
-        #timer {
-            font-size: 24px;
-            font-weight: bold;
-            color: #ff4444;
-            margin-bottom: 20px;
-        }
-
-        #input-section { margin-bottom: 20px; }
-        input {
-            padding: 10px;
-            width: 60px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            transition: 0.3s;
-        }
-
-        button:hover { background-color: #45a049; }
-
-        .option-btn {
-            display: block;
-            width: 100%;
-            margin: 10px 0;
-            padding: 15px;
-            text-align: left;
-            background-color: #f8f9fa;
-            color: #333;
-            border: 1px solid #ddd;
-        }
-
-        .option-btn:hover { background-color: #e9ecef; }
-
-        #question-text {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            min-height: 60px;
-        }
-
-        #mode-tip {
-            font-size: 14px;
-            color: #666;
-            margin-bottom: 10px;
-        }
+        :root { --player-a: #3498db; --player-b: #e74c3c; --wall: #2c3e50; --cell-size: 60px; }
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background: #f4f4f9; padding: 20px; }
+        
+        /* 確保隱藏標籤絕對生效 */
+        .hidden { display: none !important; }
+        
+        #setup-screen { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
+        .card { background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #eee; }
+        input { padding: 10px; font-size: 16px; width: 80%; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; text-align: center; }
+        
+        #grid { display: grid; gap: 5px; margin: 20px auto; background: #ddd; padding: 5px; border-radius: 4px; }
+        .cell { width: var(--cell-size); height: var(--cell-size); background: white; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 1px solid #ccc; transition: 0.3s; }
+        .cell.start { background: #2ecc71; color: white; }
+        .cell.end { background: #f1c40f; color: white; }
+        .cell.path { background: var(--player-a); color: white; }
+        .cell.wall { background: var(--wall); color: white; }
+        .cell.selectable { border: 3px solid var(--player-a); cursor: pointer; animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.95); } 100% { transform: scale(1); } }
+        
+        button { padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background: #34495e; color: white; margin: 5px; transition: 0.3s; }
+        button:hover { background: #2c3e50; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        #quiz-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; margin-top: 20px; text-align: center; }
+        .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .timer { font-size: 24px; color: #e74c3c; font-weight: bold; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
-<div id="main-container">
-    <!-- 輸入介面 -->
-    <div id="input-section">
-        <h2>桌遊答題庫</h2>
-        <p>請輸入題號 (1-50)</p>
-        <input type="number" id="target-index" min="1" max="50">
-        <button onclick="startQuiz()">開始挑戰</button>
-    </div>
-
-    <!-- 題目介面 -->
-    <div id="quiz-section" class="hidden">
-        <div id="timer">01:00</div>
-        <div id="mode-tip"></div>
-        <div id="question-text"></div>
-        <div id="options-container">
-            <button class="option-btn" onclick="checkAnswer('A')" id="btnA"></button>
-            <button class="option-btn" onclick="checkAnswer('B')" id="btnB"></button>
-            <button class="option-btn" onclick="checkAnswer('C')" id="btnC"></button>
-            <button class="option-btn" onclick="checkAnswer('D')" id="btnD"></button>
+    <div id="setup-screen">
+        <h1>知識封鎖戰</h1>
+        <div class="card">
+            <h3>創建新遊戲</h3>
+            <p>選擇地圖大小：</p>
+            <select id="map-size-select" style="padding: 5px; margin-bottom: 10px;">
+                <option value="5">5 x 5</option>
+                <option value="6">6 x 6</option>
+                <option value="7">7 x 7</option>
+            </select><br>
+            <button style="background:#27ae60" onclick="createRoom()">創建房間 (擔任 A)</button>
+        </div>
+        <div class="card">
+            <h3>加入現有遊戲</h3>
+            <input type="text" id="join-room-id" placeholder="輸入 6 位房號">
+            <button style="background:#2980b9" onclick="joinExistingRoom()">加入房間 (擔任 B)</button>
         </div>
     </div>
-</div>
+
+    <div id="game-screen" class="hidden">
+        <h2 id="display-room-id">房間號：...</h2>
+        <h4 id="role-text">你的角色：...</h4>
+        <div id="status-msg">等待連線中...</div>
+        
+        <div id="grid"></div>
+
+        <div id="quiz-container" class="hidden">
+            <div class="timer">剩餘時間：<span id="time-left">60</span>s</div>
+            <h3 id="question-text">題目載入中...</h3>
+            
+            <div id="buzzer-zone">
+                <button style="width:100%; height: 60px; font-size: 20px; background: #e67e22;" onclick="sendBuzz()">點我搶答！</button>
+            </div>
+            
+            <div id="options-zone" class="options">
+                <button id="optA" onclick="sendAnswer('A')"></button>
+                <button id="optB" onclick="sendAnswer('B')"></button>
+                <button id="optC" onclick="sendAnswer('C')"></button>
+                <button id="optD" onclick="sendAnswer('D')"></button>
+            </div>
+        </div>
+    </div>
 
 <script>
-    const questions = [
+    const firebaseConfig = {
+        apiKey: "AIzaSyDM1CXWdIDVIxbtj3fa8vSA4tIKieVB8lE",
+        authDomain: "boradgamewebsite.firebaseapp.com",
+        databaseURL: "https://boradgamewebsite-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "boradgamewebsite",
+        storageBucket: "boradgamewebsite.firebasestorage.app",
+        messagingSenderId: "132461689367",
+        appId: "1:132461689367:web:583d6b2b4743ff2a02ba52"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const rawQuestions = [
         ["誰發明了電燈？", "牛頓", "愛迪生", "愛因斯坦", "特斯拉", "B"],
         ["台灣最高的山是什麼山？", "雪山", "阿里山", "玉山", "大霸尖山", "C"],
         ["水在常溫下的化學式是什麼？", "H2O", "CO2", "O2", "N2", "A"],
@@ -166,96 +150,231 @@
         ["地球自轉一圈大約需要多久？", "一小時", "一天", "一個月", "一年", "B"]
     ];
 
-    let currentIdx = -1;
-    let timer = null;
-    let timeLeft = 60;
-    let errorCount = 0;
-    let totalQuestionsAnswered = 0;
+    let myRole = null, roomID = null, gridData = [], timerInterval = null, mapSize = 5;
 
-    function startQuiz() {
-        const input = document.getElementById('target-index');
-        const n = parseInt(input.value);
-        
-        if (n >= 1 && n <= 50) {
-            currentIdx = n - 1;
-            errorCount = 0;
-            timeLeft = 60;
-            totalQuestionsAnswered++;
+    function createRoom() {
+        mapSize = parseInt(document.getElementById('map-size-select').value);
+        roomID = Math.floor(100000 + Math.random() * 900000).toString();
+        myRole = 'A';
+        const total = mapSize * mapSize;
+        const initialGrid = Array(total).fill('empty');
+        initialGrid[0] = 'start'; 
+        initialGrid[total - 1] = 'end';
+
+        db.ref('rooms/' + roomID).set({
+            grid: initialGrid,
+            mapSize: mapSize,
+            turn: 'WAITING',
+            status: '等待對手加入...',
+            gameStarted: false,
+            quiz: null,
+            buzzer: null,
+            timeLeft: 60
+        }).then(() => enterGame());
+    }
+
+    function joinExistingRoom() {
+        const id = document.getElementById('join-room-id').value;
+        if (!id) return alert("請輸入房號");
+        db.ref('rooms/' + id).once('value', snap => {
+            if (snap.exists()) {
+                roomID = id; myRole = 'B';
+                db.ref('rooms/' + roomID).update({ 
+                    status: '遊戲開始！A 請選題', 
+                    turn: 'A', 
+                    gameStarted: true 
+                });
+                enterGame();
+            } else { alert("找不到房間！"); }
+        });
+    }
+
+    function enterGame() {
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('game-screen').classList.remove('hidden');
+        document.getElementById('display-room-id').innerText = "房間號：" + roomID;
+        document.getElementById('role-text').innerText = "角色：" + (myRole === 'A' ? "開拓者(A)" : "阻擋者(B)");
+        listenToRoom();
+    }
+
+    function listenToRoom() {
+        db.ref('rooms/' + roomID).on('value', snap => {
+            const data = snap.val();
+            if(!data) return;
+            gridData = data.grid;
+            mapSize = data.mapSize || 5;
+            renderGrid(data.grid, data.turn, data.gameStarted);
+            handleQuiz(data);
+            document.getElementById('status-msg').innerText = data.status;
             
-            showQuiz();
-            startTimer();
-        } else {
-            alert("請輸入 1 到 50 之間的數字");
+            const timerSpan = document.getElementById('time-left');
+            if (data.turn === 'QUIZ' && timerSpan) {
+                timerSpan.innerText = data.timeLeft !== undefined ? data.timeLeft : 60;
+            }
+        });
+    }
+
+    function renderGrid(grid, turn, gameStarted) {
+        const gridEl = document.getElementById('grid');
+        if (!gameStarted) {
+            gridEl.innerHTML = '<p style="padding: 20px;">等待對手加入...</p>';
+            return;
         }
+        gridEl.style.display = 'grid';
+        gridEl.style.gridTemplateColumns = `repeat(${mapSize}, 60px)`;
+        gridEl.innerHTML = '';
+
+        let selectables = [];
+        if (turn === 'A' && myRole === 'A') {
+            grid.forEach((type, i) => {
+                if (type === 'start' || type === 'path') {
+                    getNeighbors(i).forEach(n => {
+                        if (grid[n] !== 'start' && grid[n] !== 'path' && grid[n] !== 'wall') selectables.push(n);
+                    });
+                }
+            });
+        }
+
+        grid.forEach((type, i) => {
+            const cell = document.createElement('div');
+            cell.className = `cell ${type === 'empty' ? '' : type}`;
+            if (i === 0) cell.innerText = "起點";
+            if (i === grid.length - 1) cell.innerText = "終點";
+            if (selectables.includes(i)) {
+                cell.classList.add('selectable');
+                cell.onclick = () => selectCell(i);
+            }
+            gridEl.appendChild(cell);
+        });
     }
 
-    function showQuiz() {
-        document.getElementById('input-section').classList.add('hidden');
-        document.getElementById('quiz-section').classList.remove('hidden');
-        
-        const q = questions[currentIdx];
-        const modeTip = totalQuestionsAnswered === 1 ? "首題模式：只有開路者可回答" : "普通模式";
-        document.getElementById('mode-tip').innerText = modeTip;
-        document.getElementById('question-text').innerText = `Q${currentIdx + 1}: ${q[0]}`;
-        
-        document.getElementById('btnA').innerText = "A) " + q[1];
-        document.getElementById('btnB').innerText = "B) " + q[2];
-        document.getElementById('btnC').innerText = "C) " + q[3];
-        document.getElementById('btnD').innerText = "D) " + q[4];
-        
-        // 恢復按鈕可點擊
-        const btns = document.querySelectorAll('.option-btn');
-        btns.forEach(b => b.disabled = false);
+    function selectCell(idx) {
+        db.ref('rooms/' + roomID).update({
+            turn: 'QUIZ',
+            quiz: { selectedIdx: idx, qIdx: Math.floor(Math.random() * rawQuestions.length) },
+            buzzer: null,
+            failedPlayers: null,
+            status: '搶答開始！',
+            timeLeft: 60
+        });
+        if (myRole === 'A') startSyncTimer();
     }
 
-    function startTimer() {
-        if (timer) clearInterval(timer);
-        updateTimerDisplay();
-        timer = setInterval(() => {
-            timeLeft--;
-            updateTimerDisplay();
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                alert("時間到！挑戰失敗(請重抽題目)。");
-                resetToMain();
+    function startSyncTimer() {
+        clearInterval(timerInterval);
+        let count = 60;
+        timerInterval = setInterval(() => {
+            count--;
+            db.ref('rooms/' + roomID).update({ timeLeft: count });
+            if (count <= 0) {
+                clearInterval(timerInterval);
+                db.ref('rooms/' + roomID).update({ turn: 'A', quiz: null, buzzer: null, status: '時間到，換 A 選題' });
             }
         }, 1000);
     }
 
-    function updateTimerDisplay() {
-        const mins = Math.floor(timeLeft / 60);
-        const secs = timeLeft % 60;
-        document.getElementById('timer').innerText = 
-            `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-    }
-
-    function checkAnswer(choice) {
-        const correct = questions[currentIdx][5];
-        const allowedErrors = totalQuestionsAnswered === 1 ? 1 : 2;
-
-        if (choice === correct) {
-            clearInterval(timer);
-            alert("答對了！答對方執行下一步。");
-            resetToMain();
-        } else {
-            errorCount++;
-            if (errorCount >= allowedErrors) {
-                clearInterval(timer);
-                alert("挑戰失敗！(請重抽題目)");
-                resetToMain();
+    function handleQuiz(data) {
+        const container = document.getElementById('quiz-container');
+        if (data.turn === 'QUIZ' && data.quiz) {
+            container.classList.remove('hidden');
+            const q = rawQuestions[data.quiz.qIdx];
+            document.getElementById('question-text').innerText = q[0];
+            const btns = [document.getElementById('optA'), document.getElementById('optB'), document.getElementById('optC'), document.getElementById('optD')];
+            
+            if (!data.buzzer) {
+                document.getElementById('buzzer-zone').style.display = 'block';
+                btns.forEach((b, i) => {
+                    b.innerText = String.fromCharCode(65 + i) + ": " + q[i+1];
+                    b.disabled = true;
+                });
             } else {
-                alert(`答錯了！請另一方答題。`);
+                document.getElementById('buzzer-zone').style.display = 'none';
+                btns.forEach((b, i) => {
+                    b.innerText = String.fromCharCode(65 + i);
+                    const hasFailed = data.failedPlayers && data.failedPlayers.includes(myRole);
+                    b.disabled = (data.buzzer.player !== myRole || hasFailed);
+                });
             }
+        } else {
+            container.classList.add('hidden');
+            if (myRole === 'A') clearInterval(timerInterval);
         }
     }
 
-    function resetToMain() {
-        clearInterval(timer);
-        document.getElementById('quiz-section').classList.add('hidden');
-        document.getElementById('input-section').classList.remove('hidden');
-        document.getElementById('target-index').value = "";
+    function sendBuzz() { db.ref('rooms/' + roomID + '/buzzer').set({ player: myRole }); }
+
+    function sendAnswer(choice) {
+        const roomRef = db.ref('rooms/' + roomID);
+        roomRef.once('value', snap => {
+            const data = snap.val();
+            const correct = rawQuestions[data.quiz.qIdx][5];
+            const winner = data.buzzer.player;
+            const targetIdx = data.quiz.selectedIdx;
+            let newGrid = [...data.grid];
+
+            if (choice === correct) {
+                newGrid[targetIdx] = (winner === 'A') ? (targetIdx === newGrid.length-1 ? 'end' : 'path') : 'wall';
+                roomRef.update({ grid: newGrid, turn: 'A', quiz: null, buzzer: null, status: winner + ' 答對了！' });
+                checkGameOver(newGrid);
+            } else {
+                let failed = data.failedPlayers ? [...data.failedPlayers] : [];
+                failed.push(winner);
+                if (failed.length >= 2) {
+                    roomRef.update({ turn: 'A', quiz: null, buzzer: null, failedPlayers: null, status: '都答錯，換 A 選題' });
+                } else {
+                    roomRef.update({ buzzer: { player: (winner==='A'?'B':'A') }, failedPlayers: failed, status: winner + ' 答錯，換人答' });
+                }
+            }
+        });
+    }
+
+    function checkGameOver(grid) {
+        if (canReachEnd(grid)) {
+            db.ref('rooms/' + roomID).update({ status: 'A 獲勝！' });
+            setTimeout(() => { alert("開拓者 A 獲勝！"); location.reload(); }, 500);
+        } else if (isABlocked(grid)) {
+            db.ref('rooms/' + roomID).update({ status: 'B 獲勝！' });
+            setTimeout(() => { alert("阻擋者 B 獲勝！"); location.reload(); }, 500);
+        }
+    }
+
+    function canReachEnd(grid) {
+        const last = grid.length - 1;
+        const q = [0], visited = new Set([0]);
+        while (q.length > 0) {
+            const curr = q.shift();
+            if (curr === last) return true;
+            getNeighbors(curr).forEach(n => {
+                if (!visited.has(n) && (grid[n] === 'path' || grid[n] === 'end')) {
+                    visited.add(n); q.push(n);
+                }
+            });
+        }
+        return false;
+    }
+
+    function isABlocked(grid) {
+        const heads = [];
+        grid.forEach((t, i) => { if(t === 'start' || t === 'path') heads.push(i); });
+        const visited = new Set(heads), q = [...heads];
+        while (q.length > 0) {
+            const curr = q.shift();
+            for (let n of getNeighbors(curr)) {
+                if (grid[n] === 'empty' || grid[n] === 'end') return false;
+                if (grid[n] === 'path' && !visited.has(n)) { visited.add(n); q.push(n); }
+            }
+        }
+        return true;
+    }
+
+    function getNeighbors(i) {
+        const n = [], r = Math.floor(i / mapSize), c = i % mapSize;
+        if (r > 0) n.push(i - mapSize);
+        if (r < mapSize - 1) n.push(i + mapSize);
+        if (c > 0) n.push(i - 1);
+        if (c < mapSize - 1) n.push(i + 1);
+        return n;
     }
 </script>
-
 </body>
 </html>
