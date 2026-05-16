@@ -26,7 +26,18 @@
         .cell.path { background: var(--player-a); color: white; }
         .cell.wall { background: var(--wall); color: white; }
         .cell.selectable { border: 3px solid var(--player-a); cursor: pointer; animation: pulse 1.5s infinite; }
-        
+	.cell.challenging { 
+   	 background: #ffecb3 !important; /* 淺橘色背景 */
+    	border: 3px dashed #f39c12 !important; /* 虛線邊框 */
+    	animation: flash 1s infinite;
+	}
+
+	@keyframes flash {
+   	 0% { opacity: 1; }
+   	 50% { opacity: 0.6; }
+   	 100% { opacity: 1; }
+	}        
+
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.95); } 100% { transform: scale(1); } }
         
         button { padding: 12px 24px; font-size: 16px; cursor: pointer; border: none; border-radius: 5px; background: #34495e; color: white; margin: 5px; transition: 0.3s; }
@@ -180,7 +191,7 @@
             if (snap.exists()) {
                 roomID = id; myRole = 'B';
                 db.ref('rooms/' + roomID).update({ 
-                    status: '遊戲開始！A 請選題', 
+                    status: '遊戲開始！A 請選擇格子', 
                     turn: 'A', 
                     gameStarted: true 
                 });
@@ -203,7 +214,7 @@
             if(!data) return;
             gridData = data.grid;
             mapSize = data.mapSize || 5;
-            renderGrid(data.grid, data.turn, data.gameStarted);
+            renderGrid(data.grid, data.turn, data.gameStarted,data.challengingIdx);
             handleQuiz(data);
             document.getElementById('status-msg').innerText = data.status;
             
@@ -214,7 +225,7 @@
         });
     }
 
-    function renderGrid(grid, turn, gameStarted) {
+    function renderGrid(grid, turn, gameStarted,challengingIdx) {
         const gridEl = document.getElementById('grid');
         if (!gameStarted) {
             gridEl.innerHTML = '<p style="padding: 20px;">等待對手加入...</p>';
@@ -238,6 +249,9 @@
         grid.forEach((type, i) => {
             const cell = document.createElement('div');
             cell.className = `cell ${type === 'empty' ? '' : type}`;
+	    if (challengingIdx !== undefined && challengingIdx === i) {
+            	cell.classList.add('challenging');
+            }
             if (i === 0) cell.innerText = "起點";
             if (i === grid.length - 1) cell.innerText = "終點";
             if (selectables.includes(i)) {
@@ -248,10 +262,12 @@
         });
     }
 
+
     function selectCell(idx) {
         db.ref('rooms/' + roomID).update({
             turn: 'QUIZ',
             quiz: { selectedIdx: idx, qIdx: Math.floor(Math.random() * rawQuestions.length) },
+	    challengingIdx: idx,
             buzzer: null,
             failedPlayers: null,
             status: '搶答開始！',
@@ -268,7 +284,7 @@
             db.ref('rooms/' + roomID).update({ timeLeft: count });
             if (count <= 0) {
                 clearInterval(timerInterval);
-                db.ref('rooms/' + roomID).update({ turn: 'A', quiz: null, buzzer: null, status: '時間到，換 A 選題' });
+                db.ref('rooms/' + roomID).update({ turn: 'A', quiz: null, buzzer: null,challengingIdx: null, status: '時間到，換 A 重新選擇格子' });
             }
         }, 1000);
     }
@@ -334,13 +350,20 @@ function handleQuiz(data) {
 
             if (choice === correct) {
                 newGrid[targetIdx] = (winner === 'A') ? (targetIdx === newGrid.length-1 ? 'end' : 'path') : 'wall';
-                roomRef.update({ grid: newGrid, turn: 'A', quiz: null, buzzer: null, status: winner + ' 答對了！' });
+                roomRef.update({ 
+			grid: newGrid,
+			turn: 'A',
+			quiz: null,
+			buzzer: null,
+			status: winner + ' 答對了！',
+			challengingIdx: null // 清空標記
+		});
                 checkGameOver(newGrid);
             } else {
                 let failed = data.failedPlayers ? [...data.failedPlayers] : [];
                 failed.push(winner);
                 if (failed.length >= 2) {
-                    roomRef.update({ turn: 'A', quiz: null, buzzer: null, failedPlayers: null, status: '都答錯，換 A 選題' });
+                    roomRef.update({ turn: 'A', quiz: null, buzzer: null, failedPlayers: null, challengingIdx: null, status: '都答錯，換 A 重新選擇格子' });
                 } else {
                     roomRef.update({ buzzer: { player: (winner==='A'?'B':'A') }, failedPlayers: failed, status: winner + ' 答錯，換人答' });
                 }
