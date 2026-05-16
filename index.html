@@ -349,13 +349,45 @@ function handleQuiz(data) {
     }
 
     function checkGameOver(grid) {
-        if (canReachEnd(grid)) {
-            db.ref('rooms/' + roomID).update({ status: 'A 獲勝！' });
+        // 獲取地圖大小 (假設你已經把 mapSize 存起來了)
+        const size = mapSize || 5; 
+
+        // 1. 檢查 A 是否贏了：起點 (0) 能否連到終點 (lastIdx)
+        if (canReachEnd(grid, size)) {
+            db.ref('rooms/' + roomID).update({ status: '遊戲結束：開拓者 A 獲勝！' });
             setTimeout(() => { alert("開拓者 A 獲勝！"); location.reload(); }, 500);
-        } else if (isABlocked(grid)) {
-            db.ref('rooms/' + roomID).update({ status: 'B 獲勝！' });
-            setTimeout(() => { alert("阻擋者 B 獲勝！"); location.reload(); }, 500);
+        } 
+        // 2. 檢查 B 是否贏了：判斷 A 是否「還有可能」到達終點
+        else if (isAPathCutOff(grid, size)) {
+            db.ref('rooms/' + roomID).update({ status: '遊戲結束：阻擋者 B 獲勝！' });
+            setTimeout(() => { alert("阻擋者 B 獲勝！路徑已被完全封鎖。"); location.reload(); }, 500);
         }
+    }
+
+    // 判斷 B 是否封鎖成功 (A 是否還有希望)
+    function isAPathCutOff(grid, size) {
+        const lastIdx = grid.length - 1;
+        const queue = [0]; // 從起點開始找
+        const visited = new Set([0]);
+
+        while (queue.length > 0) {
+            const curr = queue.shift();
+
+            // 如果在搜尋過程中碰到了終點，代表路還沒斷
+            if (curr === lastIdx) return false;
+
+            const neighbors = getNeighbors(curr);
+            for (let n of neighbors) {
+                // A 可以藉由「自己的領地(path/start)」或是「尚未被佔領的空白格(empty)」繼續前進
+                if (!visited.has(n) && (grid[n] === 'empty' || grid[n] === 'path' || grid[n] === 'start' || grid[n] === 'end')) {
+                    visited.add(n);
+                    queue.push(n);
+                }
+            }
+        }
+
+        // 如果走完了所有可能的路都碰不到終點，代表 B 獲勝！
+        return true; 
     }
 
     function canReachEnd(grid) {
